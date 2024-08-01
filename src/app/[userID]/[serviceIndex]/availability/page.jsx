@@ -16,13 +16,13 @@ export default function Page() {
   // console.log(params);
 
   // STATE VARIABLE TO STORE AVAILABILITY DATA
+  const today = new Date();
   const [data, setData] = useState([]);
   const [themeColor, setThemeColor] = useState("#000000");
-
   const [date, setDate] = useState(new Date());
   const [availabilityData, setAvailabilityData] = useState([]);
   const [timeSlots, setTimeSlots] = useState({});
-
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
   // STATE VARIABLE TO STORE AVAILABILE TIME SLOTS
 
   // FUNCTION TO GET AVAILABLE TIME SLOTS
@@ -100,13 +100,14 @@ export default function Page() {
       setThemeColor(data[0].themeColor);
       // SET AVAILABILITY DATA VARIABLE
       // Previously the availability data was a regular variable which was being "mutated"  on the top level of the component which caused it to be "set" every re-render which could have impacted performance, so i created a state variable and set it on the first render
-      setAvailabilityData(data[0]?.services[2].availability);
+      setAvailabilityData(data[0]?.services[1]?.availability);
     });
   }, []);
+
   useEffect(() => {
     // CALCULATE TIME SLOTS FOR EACH DAY
     //Previously time slots was a regular variable that was being mutated on the top level of the component which caused it to be "mutated" and set on every re-render which could have affected performance and is a bad practice, so i created a state variable and set it as soon as availability data is set
-    if (availabilityData.length !== 0)
+    if (availabilityData?.length !== 0)
       setTimeSlots((prevTimeSlots) => {
         let timeSlotsTemp = {};
         availabilityData?.timings?.forEach(
@@ -122,8 +123,7 @@ export default function Page() {
         return timeSlotsTemp;
       });
   }, [availabilityData]);
-  const [selectDatesTimeSlots, setSelectDatesTimeSlots] = useState([]);
-
+  console.log("selected time slots", selectedTimeSlots);
   /*
     // SET TIME SLOT ARRAY BASED ON SELECTED DATE - SUS CODE
     useEffect(() => {
@@ -136,26 +136,77 @@ export default function Page() {
     },[date]);
     */
 
-  // console.log(timeSlots[date.toLocaleString("en-us", { weekday: "long" })]);
+  // const handleTimeSlotSelect = (id) => {
+  //   setSelectedTimeSlots((prevState) => {
+  //     let dateToggled = id.slice(0, id.indexOf(" "));
+  //     let timingToggled = id.slice(id.indexOf(" ") + 1);
+  //     let dateToggledIndex = prevState.findIndex(
+  //       (timeSlot) => timeSlot.date === dateToggled
+  //     );
+  //     let dateExists = dateToggledIndex === -1 ? false : true;
+  //     console.log("date exists", dateExists);
+  //     let newState = prevState;
+  //     if (!dateExists) {
+  //       newState.push({ date: dateToggled, timings: [timingToggled] });
+  //     } else {
+  //       let timingToggledIndex = newState[dateToggledIndex]?.timings.findIndex(
+  //         (timing) => timing === timingToggled
+  //       );
+  //       let timingExists = timingToggledIndex === -1 ? false : true;
+  //       if (!timingExists) {
+  //         newState[dateToggledIndex].timings.push(timingToggled);
+  //       } else {
+  //         let filteredTimings = newState[dateToggledIndex]?.timings;
+  //         filteredTimings = filteredTimings?.filter(
+  //           (timing) => timing !== timingToggled
+  //         );
+  //         newState[dateToggledIndex].timings = filteredTimings;
+  //       }
+  //     }
+  //     return newState;
+  //   });
+  // };
+  const handleTimeSlotSelect = (id) => {
+    setSelectedTimeSlots((prevState) => {
+      const dateToggled = id.slice(0, id.indexOf(" "));
+      const timingToggled = id.slice(id.indexOf(" ") + 1);
 
+      return prevState.some((slot) => slot.date === dateToggled)
+        ? prevState.map((slot) =>
+            slot.date === dateToggled
+              ? {
+                  ...slot,
+                  timings: slot.timings.includes(timingToggled)
+                    ? slot.timings.filter((timing) => timing !== timingToggled)
+                    : [...slot.timings, timingToggled],
+                }
+              : slot
+          )
+        : [...prevState, { date: dateToggled, timings: [timingToggled] }];
+    });
+  };
+  const handleBookClick = (event) => {
+    event.preventDefault();
+  };
   useEffect(() => {
-    console.log("date", date);
-  }, [date]);
+    console.log(selectedTimeSlots);
+  }, [selectedTimeSlots]);
   return (
     <div>
       {/* CHECK WHETHER API FETCHED OR NOT */}
       {JSON.stringify(availabilityData) === "{}" ? null : (
         <div>
           <form>
-            <div className="flex flex-col h-full w-full justify-center items-center">
+            <div className="flex flex-col h-full w-full justify-center items-center ">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={setDate}
                 className="rounded-md border"
+                disabled={{ before: today }}
               />
 
-              <div className="flex flex-col space-y-3 mt-6 border-black">
+              <div className="flex flex-col space-y-3 mt-6 ">
                 {/* previously we had not checked for the condition if date was undefined which happens when the user clicks on a date and clicks again which causes it to be undefined, and that was leading to an error */}
                 {JSON.stringify(timeSlots) !== "{}" && date !== undefined ? (
                   <>
@@ -170,23 +221,28 @@ export default function Page() {
                           key={index}
                           className="flex justify-content items-center space-x-2 h-10 w-25 text-gray-500"
                         >
-                          {/* here i am using a checkbox instead of a regular div which was preivously used since clicking and un-clicking would be difficult to keep track of and checkboxes are well-suited for forms, plus it also allows checking multiple sessions in a day */}
-                          <Checkbox id={`timeslot-${index}`} />
-                          <label
-                            htmlFor={`timeslot-${index}`}
-                            className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-[10px]"
-                          >
-                            {`${elm.start}-${elm.end}`}
-                          </label>
+                          {/* here i am using a button component that i created - TimeSlot, which when selected gets saved in the state and displays the changes on the UI */}
+                          <TimeSlot
+                            id={`${date.toLocaleDateString("en-ca")} ${
+                              elm.start
+                            }-${elm.end}`}
+                            timing={`${elm.start}-${elm.end}`}
+                            handleClick={handleTimeSlotSelect}
+                            selected={selectedTimeSlots.some(
+                              (slot) =>
+                                slot.date ===
+                                  date.toLocaleDateString("en-ca") &&
+                                slot.timings.includes(`${elm.start}-${elm.end}`)
+                            )}
+                          />
                         </div>
                       ))}
                     </div>
+                    {/* when the Book Appointment button is clicked we intend to create a reservation using the data stored in the selected time slots state variable */}
                     <button
                       type="submit"
                       className="bg-teal-500/75 hover:bg-teal-300/75 py-2 w-full rounded focus:outline-none focus:shadow-outline mt-6 mb-10"
-                      onClick={(event) => {
-                        event.preventDefault();
-                      }}
+                      onClick={handleBookClick}
                     >
                       <h4 className="text-sm text-white">Book Appointment</h4>
                     </button>

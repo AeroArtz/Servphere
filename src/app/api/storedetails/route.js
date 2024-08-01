@@ -6,9 +6,7 @@ import { auth } from "@/auth";
 
 export async function GET() {
   const session = await auth();
-  const email = session.user?.email;
-
-  // console.log(email)
+  const email = session?.user?.email;
 
   await connectDB();
 

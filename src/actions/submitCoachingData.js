@@ -1,5 +1,5 @@
 "use server";
-
+import { ObjectId } from "bson";
 import { auth } from "@/auth";
 import { User } from "../../models/userModel";
 import { connectDB } from "../utils/connect";
@@ -94,7 +94,9 @@ export async function submitCoachingData(formData) {
     { ownerEmail: email },
     {
       $push: {
+        // im giving an id to the embedded services document for consistency
         services: {
+          _id: new ObjectId(),
           label: "coaching",
           thumbnail: {
             style: tb_style,
